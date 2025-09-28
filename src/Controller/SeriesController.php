@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Series;
+
 use App\Form\SeriesType;
 use App\Repository\SeriesRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -13,7 +14,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class SeriesController extends AbstractController
-{
     public function __construct(private SeriesRepository $seriesRepository, private EntityManagerInterface $entityManager)
     {
     }
@@ -23,6 +23,7 @@ final class SeriesController extends AbstractController
         $seriesList = $this->seriesRepository->findAll();
 
         return $this->render('series/index.html.twig', [
+
             'seriesList' => $seriesList
         ]);
     }
@@ -45,6 +46,7 @@ final class SeriesController extends AbstractController
         }
 
         $this->addFlash('success', "Series \"{$series->getName()}\" add successfully");
+
 
         $this->seriesRepository->add($series, true);
         return new RedirectResponse('/series');

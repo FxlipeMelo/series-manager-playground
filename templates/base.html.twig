@@ -18,6 +18,7 @@
     <div class="container">
         <h1>{{ block('title') }}</h1>
 
+
         {% for type, messages in app.flashes %}
             {% for message in messages %}
                 <div class="alert alert-{{ type }}">
