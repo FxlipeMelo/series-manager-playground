@@ -2,28 +2,61 @@
 
 namespace App\Repository;
 
+use AllowDynamicProperties;
+use App\DTO\SeriesCreateFormInput;
 use App\Entity\Series;
+use App\Repository\EpisodeRepository;
+use App\Repository\SeasonRepository;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\Mapping\Entity;
+use Doctrine\DBAL\Exception;
+use Doctrine\ORM\Mapping\Entity;;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<Series>
  */
-class SeriesRepository extends ServiceEntityRepository
+#[AllowDynamicProperties] class SeriesRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
+    public function __construct(ManagerRegistry $registry, SeasonRepository $seasonRepository, EpisodeRepository $episodeRepository)
     {
         parent::__construct($registry, Series::class);
+        $this->seasonRepository = $seasonRepository;
+        $this->episodeRepository = $episodeRepository;
     }
 
-    public function add(Series $entity, bool $flush = false): void
+    /**
+     * @throws Exception
+     */
+    public function add(SeriesCreateFormInput $input): Series
     {
-        $this->getEntityManager()->persist($entity);
+        $entityManager = $this->getEntityManager();
+        $connection = $entityManager->getConnection();
 
-        if ($flush) {
-            $this->getEntityManager()->flush();
+        $connection->beginTransaction();
+
+        try {
+            $series = new Series($input->seriesName);
+            $entityManager->persist($series);
+            $entityManager->flush();
+
+            $this->seasonRepository->addSeasonsQuantity($input->seasonQuantity, $series->getId());
+
+            $seasons = $this->seasonRepository->findBy(['series' => $series]);
+            $this->episodeRepository->addEpisodesPerSeason($input->episodesPerSeason, $seasons);
+
+            $connection->commit();
+        } catch (\Exception $e) {
+            if ($connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
+
+            if (isset($series) && $entityManager->contains($series)) {
+                $entityManager->detach($series);
+            }
+            throw $e;
         }
+
+        return $series;
     }
 
     public function remove(Series $entity, bool $flush = false): void

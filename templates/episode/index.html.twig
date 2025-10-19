@@ -1,0 +1,18 @@
+{% extends 'base.html.twig' %}
+
+{% block title %} Episodios da temporada {{ season.number }} da serie {{ series.name }}{% endblock %}
+
+{% block body %}
+    <form method="POST">
+        <ul class="list-group">
+            {% for episode in episodes %}
+            <li class="list-group-item d-flex justify-content-between">
+                Episodios {{ episode.number }}
+                <input type="checkbox" name="episodes[{{ episode.id }}] {% if episode.watched %} checked {% endif %}">
+            </li>
+            {% endfor %}
+        </ul>
+
+        <button class="btn btn-primary mt-2">Salvar</button>
+    </form>
+{% endblock %}

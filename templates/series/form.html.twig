@@ -3,7 +3,9 @@
 {% block title %}{{ series is defined ? 'Editar' : 'Nova' }}{% endblock %}
 {% block body %}
     {{ form_start(form) }}
-    {{ form_row(form.name) }}
+    {{ form_row(form.seriesName) }}
+    {{ form_row(form.seasonQuantity) }}
+    {{ form_row(form.episodesPerSeason) }}
     {{ form_widget(form.save, {'attr': {'class': 'btn btn-dark'}}) }}
     {{ form_end(form) }}
 

@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %} Temporadas da série "{{ series.name }}"{% endblock %}
+
+{% block body %}
+    <ul class="list-group">
+        {% for season in season %}
+            <li class="list list-group-item  d-flex justify-content-between">
+                <a href="{{ path('app_episode', {season: season.id}) }}" >
+                    Temporada {{ season.number }}
+                </a>
+                <span class="badge bg-secondary">{{ season.watchedEpisodes | length }} / {{ season.episodes | length }}</span>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
