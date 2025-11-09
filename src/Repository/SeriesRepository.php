@@ -3,7 +3,7 @@
 namespace App\Repository;
 
 use AllowDynamicProperties;
-use App\DTO\SeriesCreateFormInput;
+use App\DTO\SeriesCreationInputDTO;
 use App\Entity\Series;
 use App\Repository\EpisodeRepository;
 use App\Repository\SeasonRepository;
@@ -27,7 +27,7 @@ use Doctrine\Persistence\ManagerRegistry;
     /**
      * @throws Exception
      */
-    public function add(SeriesCreateFormInput $input): Series
+    public function add(SeriesCreationInputDTO $input): Series
     {
         $entityManager = $this->getEntityManager();
         $connection = $entityManager->getConnection();
@@ -35,7 +35,7 @@ use Doctrine\Persistence\ManagerRegistry;
         $connection->beginTransaction();
 
         try {
-            $series = new Series($input->seriesName);
+            $series = new Series($input->seriesName, $input->coverImage);
             $entityManager->persist($series);
             $entityManager->flush();
 

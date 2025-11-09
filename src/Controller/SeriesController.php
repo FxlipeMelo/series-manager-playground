@@ -2,23 +2,33 @@
 
 namespace App\Controller;
 
-use App\DTO\SeriesCreateFormInput;
-use App\Entity\Episode;
-use App\Entity\Season;
+use App\DTO\SeriesCreationInputDTO;
 use App\Entity\Series;
-
 use App\Form\SeriesType;
+use App\Message\SeriesWasCreate;
+use App\Message\SeriesWasDeleted;
 use App\Repository\SeriesRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Messenger\Exception\ExceptionInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\String\Slugger\SluggerInterface;
+
 
 final class SeriesController extends AbstractController
 {
-    public function __construct(private SeriesRepository $seriesRepository, private EntityManagerInterface $entityManager)
+    public function __construct(
+        private SeriesRepository $seriesRepository,
+        private EntityManagerInterface $entityManager,
+        private MessageBusInterface $message,
+        private SluggerInterface $slugger,
+    )
     {
     }
     #[Route('/series', name: 'app_series', methods: ['GET'])]
@@ -35,34 +45,49 @@ final class SeriesController extends AbstractController
     #[Route('/series/create', name: 'app_series_form', methods: ['GET'])]
     public function addSeriesForm(Request $request): Response
     {
-        $form = $this->createForm(SeriesType::class, new SeriesCreateFormInput());
+        $form = $this->createForm(SeriesType::class, new SeriesCreationInputDTO());
         return $this->render('series/form.html.twig', compact('form'));
     }
 
     /**
      * @throws \Exception
+     * @throws ExceptionInterface
      */
     #[Route('/series/create', name: 'app_add_series',methods: ['POST'])]
     public function addSeries(Request $request): Response
     {
-        $input = new SeriesCreateFormInput();
+        $input = new SeriesCreationInputDTO();
         $form = $this->createForm(SeriesType::class, $input)->handleRequest($request);
 
         if (!$form->isValid()) {
             return $this->render('series/form.html.twig', compact('form'));
         }
 
+        /** @var UploadedFile $uploadCoverImage */
+        $uploadCoverImage = $form->get('coverImage')->getData();
+
+        if ($uploadCoverImage) {
+            $originalFilename = pathinfo($uploadCoverImage->getClientOriginalName(), PATHINFO_FILENAME);
+            $safeFileName = $this->slugger->slug($originalFilename);
+            $newFileName = $safeFileName . '-' . uniqid() . '.' . $uploadCoverImage->guessExtension();
+
+            $uploadCoverImage->move($this->getParameter('cover_image_directory'), $newFileName);
+            $input->coverImage = $newFileName;
+        }
+
         $series = $this->seriesRepository->add($input);
+        $this->message->dispatch(new SeriesWasCreate($series));
 
         $this->addFlash('success', "Series \"{$series->getName()}\" add successfully");
 
         return new RedirectResponse('/series');
     }
 
-    #[Route('/series/delete/{id}', name: 'app_series_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
-    public function deleteSeries(int $id, Request $request): Response
+    #[Route('/series/delete/{series}', name: 'app_series_delete', methods: ['DELETE'])]
+    public function deleteSeries(Series $series): Response
     {
-        $this->seriesRepository->removeByID($id);
+        $this->seriesRepository->remove($series, true);
+        $this->message->dispatch(new SeriesWasDeleted($series));
         $this->addFlash('success', "Series delete successfully");
 
         return new RedirectResponse('/series');
